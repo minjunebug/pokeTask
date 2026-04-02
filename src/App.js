@@ -13,6 +13,27 @@ export default function App() {
   const TOTAL_POKEMON = 151;
   const [showConfetti, setShowConfetti] = useState(false);
 
+  const COOLDOWN_MINUTES = 30;
+
+  const [lastWorkTime, setLastWorkTime] = useState(() => {
+    const saved = localStorage.getItem("lastWorkTime");
+    return saved ? parseInt(saved) : null;
+  });
+
+  const [workTimeLeft, setWorkTimeLeft] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (lastWorkTime) {
+        const now = Date.now();
+        const cooldownMs = COOLDOWN_MINUTES * 60 * 1000;
+        const diff = Math.ceil((cooldownMs - (now - lastWorkTime)) / 1000);
+        setWorkTimeLeft(diff > 0 ? diff : 0);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lastWorkTime]);
+
   useEffect(() => {
     const fetchPokemonData = async () => {
       try {
@@ -86,9 +107,21 @@ export default function App() {
     const card = e.target.closest("div");
     const textarea = card.querySelector("textarea");
 
+    if (workTimeLeft > 0) {
+      const minutes = Math.floor(workTimeLeft / 60);
+      const seconds = workTimeLeft % 60;
+      return alert(
+        `일이 너무 빨리 끝나는데요@?! ${minutes}분 ${seconds}초 후에 다음 업무를 완료할 수 있어요. 🔥`
+      );
+    }
+
     if (!textarea.value.trim()) return alert("업무 내용을 입력해주세요");
 
+    const now = Date.now();
     setTicket((prev) => prev + 1);
+    setLastWorkTime(now);
+    localStorage.setItem("lastWorkTime", now.toString()); // 브라우저에 저장
+
     textarea.value = "";
     alert("업무 완료! 티켓 1장을 획득했습니다. 🎫");
   };
@@ -260,9 +293,16 @@ export default function App() {
               />
               <button
                 onClick={completeTask}
-                className="mt-2 w-full py-2 bg-gray-800 text-white rounded-lg text-sm font-medium hover:bg-black"
+                disabled={workTimeLeft > 0}
+                className={`w-full py-3 rounded-xl font-bold transition-all ${
+                  workTimeLeft > 0
+                    ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg active:scale-95"
+                }`}
               >
-                업무 완료 (티켓 +1)
+                {workTimeLeft > 0
+                  ? `다음 업무까지 ${Math.floor(workTimeLeft / 60)}분 대기`
+                  : "업무 완료 및 티켓 받기"}
               </button>
             </div>
           ))}
