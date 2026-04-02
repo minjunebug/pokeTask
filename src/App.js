@@ -13,7 +13,7 @@ export default function App() {
   const TOTAL_POKEMON = 151;
   const [showConfetti, setShowConfetti] = useState(false);
 
-  const COOLDOWN_MINUTES = 30;
+  const COOLDOWN_MINUTES = 10;
 
   // 칸별 마지막 업무 시간 관리
   const [lastWorkTimes, setLastWorkTimes] = useState(() => {
