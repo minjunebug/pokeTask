@@ -347,7 +347,7 @@ export default function App() {
                 <img
                   src={item.sprite}
                   alt={item.name}
-                  className="w-16 h-16 z-10 [image-rendering:pixelated]"
+                  className="h-full aspect-square z-10 [image-rendering:pixelated] object-contain scale-125"
                 />
                 <span className="absolute inset-0 flex items-center justify-center text-white/30 text-5xl font-black z-0">
                   {item.rank}
