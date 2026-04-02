@@ -15,30 +15,34 @@ export default function App() {
 
   const COOLDOWN_MINUTES = 30;
 
-  const [lastWorkTime, setLastWorkTime] = useState(() => {
-    const saved = localStorage.getItem("lastWorkTime");
-    return saved ? parseInt(saved) : null;
+  // 칸별 마지막 업무 시간 관리
+  const [lastWorkTimes, setLastWorkTimes] = useState(() => {
+    const saved = localStorage.getItem("lastWorkTimes");
+    return saved ? JSON.parse(saved) : [null, null, null, null];
   });
 
-  const [workTimeLeft, setWorkTimeLeft] = useState(0);
+  const [workTimeLefts, setWorkTimeLefts] = useState([0, 0, 0, 0]);
 
   useEffect(() => {
     const timer = setInterval(() => {
-      if (lastWorkTime) {
-        const now = Date.now();
-        const cooldownMs = COOLDOWN_MINUTES * 60 * 1000;
-        const diff = Math.ceil((cooldownMs - (now - lastWorkTime)) / 1000);
-        setWorkTimeLeft(diff > 0 ? diff : 0);
-      }
+      const now = Date.now();
+      const cooldownMs = COOLDOWN_MINUTES * 60 * 1000;
+
+      const newLefts = lastWorkTimes.map((lastTime) => {
+        if (!lastTime) return 0;
+        const diff = Math.ceil((cooldownMs - (now - lastTime)) / 1000);
+        return diff > 0 ? diff : 0;
+      });
+
+      setWorkTimeLefts(newLefts);
     }, 1000);
     return () => clearInterval(timer);
-  }, [lastWorkTime]);
+  }, [lastWorkTimes]);
 
   useEffect(() => {
     const fetchPokemonData = async () => {
       try {
         let loadedCount = 0;
-
         const promises = Array.from({ length: 151 }, (_, i) =>
           fetch(`https://pokeapi.co/api/v2/pokemon/${i + 1}`)
             .then((res) => res.json())
@@ -58,72 +62,59 @@ export default function App() {
           );
           const pokeData = {
             id: poke.id,
-            name: poke.name.toUpperCase(), // 이름 대문자로
-            sprite: poke.sprites.front_default, // 앞모습 이미지
-            bst: baseStatTotal, // 종족값 합계
+            name: poke.name.toUpperCase(),
+            sprite: poke.sprites.front_default,
+            bst: baseStatTotal,
           };
-
-          if (baseStatTotal >= 600) categorized.S.push(pokeData); // 전설급
-          else if (baseStatTotal >= 500)
-            categorized.A.push(pokeData); // 최종진화급
-          else if (baseStatTotal >= 400)
-            categorized.B.push(pokeData); // 중간진화급
+          if (baseStatTotal >= 600) categorized.S.push(pokeData);
+          else if (baseStatTotal >= 500) categorized.A.push(pokeData);
+          else if (baseStatTotal >= 400) categorized.B.push(pokeData);
           else categorized.C.push(pokeData);
         });
-
         setAllPokemon(categorized);
         setTimeout(() => setIsLoading(false), 500);
       } catch (error) {
-        console.log("포켓몬 데이터 가져오기 실패", error);
         alert("인터넷 연결을 확인해보세요!");
       }
     };
-
     fetchPokemonData();
   }, []);
 
   useEffect(() => {
     const savedInventory = localStorage.getItem("pokemon-inventory");
     const savedTickets = localStorage.getItem("pokemon-tickets");
-
-    if (savedInventory) {
-      setInventory(JSON.parse(savedInventory)); // 문자열을 다시 배열로 변환
-    }
-    if (savedTickets) {
-      setTicket(Number(savedTickets)); // 문자열을 다시 숫자로 변환
-    }
+    if (savedInventory) setInventory(JSON.parse(savedInventory));
+    if (savedTickets) setTicket(Number(savedTickets));
   }, []);
 
-  // 2. [저장하기] 티켓이나 인벤토리가 바뀔 때마다 자동으로 실행
   useEffect(() => {
-    // 데이터가 아직 로딩 중일 때는 저장하지 않도록 방어 로직
     if (!isLoading) {
       localStorage.setItem("pokemon-inventory", JSON.stringify(inventory));
       localStorage.setItem("pokemon-tickets", ticket.toString());
     }
   }, [inventory, ticket, isLoading]);
 
-  const completeTask = (e) => {
-    const card = e.target.closest("div");
-    const textarea = card.querySelector("textarea");
-
-    if (workTimeLeft > 0) {
-      const minutes = Math.floor(workTimeLeft / 60);
-      const seconds = workTimeLeft % 60;
+  // ★ 수정 포인트: index 파라미터 추가
+  const completeTask = (index, textarea) => {
+    if (workTimeLefts[index] > 0) {
+      const minutes = Math.floor(workTimeLefts[index] / 60);
+      const seconds = workTimeLefts[index] % 60;
       return alert(
-        `일이 너무 빨리 끝나는데요@?! ${minutes}분 ${seconds}초 후에 다음 업무를 완료할 수 있어요. 🔥`
+        `마음에 여유를 가져요. ${minutes}분 ${seconds}초 후에 완료 가능해요. 🔥`
       );
     }
 
     if (!textarea.value.trim()) return alert("업무 내용을 입력해주세요");
 
     const now = Date.now();
+    const newTimes = [...lastWorkTimes];
+    newTimes[index] = now;
     setTicket((prev) => prev + 1);
-    setLastWorkTime(now);
-    localStorage.setItem("lastWorkTime", now.toString()); // 브라우저에 저장
+    setLastWorkTimes(newTimes);
+    localStorage.setItem("lastWorkTimes", JSON.stringify(newTimes));
 
     textarea.value = "";
-    alert("업무 완료! 티켓 1장을 획득했습니다. 🎫");
+    alert(`${index + 1}번 업무 완료! 티켓 1장을 획득했습니다. 🎫`);
   };
 
   const handleDraw = () => {
@@ -135,22 +126,13 @@ export default function App() {
     setLastResult(null);
 
     setTimeout(() => {
-      // 1. 등급 결정 (확률 로직)
       const chance = Math.random() * 100;
-      let selectedRank;
-      if (chance < 1) selectedRank = "S";
-      else if (chance < 10) selectedRank = "A";
-      else if (chance < 40) selectedRank = "B";
-      else selectedRank = "C";
-
-      // 2. 해당 등급에서 랜덤 포켓몬 선택
-      let pool = allPokemon[selectedRank];
-      // 만약 해당 등급에 포켓몬이 없으면 C급으로 폴백(안전장치)
-      if (pool.length === 0) {
-        selectedRank = "C";
-        pool = allPokemon["C"];
-      }
-
+      let selectedRank =
+        chance < 1 ? "S" : chance < 10 ? "A" : chance < 40 ? "B" : "C";
+      let pool =
+        allPokemon[selectedRank].length > 0
+          ? allPokemon[selectedRank]
+          : allPokemon["C"];
       const pokemon = pool[Math.floor(Math.random() * pool.length)];
 
       const colors = {
@@ -159,44 +141,37 @@ export default function App() {
         B: "bg-blue-400",
         C: "bg-gray-400",
       };
-
       const finalResult = {
         ...pokemon,
         rank: selectedRank,
         color: colors[selectedRank],
       };
 
-      // 3. 중앙 결과창 업데이트 및 S급 당첨 꽃가루
       setLastResult(finalResult);
       if (selectedRank === "S") {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 5000);
       }
 
-      // 4. 인벤토리 업데이트 및 자동 합체(진화) 엔진
       setInventory((prev) => {
         const currentInventory = [finalResult, ...prev];
-
-        // 중복 검사 (이름 기준)
         const identicalPokemon = currentInventory.filter(
           (p) => p.name === finalResult.name
         );
 
-        // [진화 조건] 동일 3마리 & S등급 미만
         if (identicalPokemon.length >= 3 && finalResult.rank !== "S") {
           const nextRankMap = { C: "B", B: "A", A: "S" };
           const nextRank = nextRankMap[finalResult.rank];
-          const upgradePool = allPokemon[nextRank];
           const evolvedPoke =
-            upgradePool[Math.floor(Math.random() * upgradePool.length)];
-
+            allPokemon[nextRank][
+              Math.floor(Math.random() * allPokemon[nextRank].length)
+            ];
           const evolvedResult = {
             ...evolvedPoke,
             rank: nextRank,
             color: colors[nextRank],
           };
 
-          // 기존 동일 포켓몬 3마리 제거
           let removeCount = 0;
           const filteredInventory = currentInventory.filter((p) => {
             if (p.name === finalResult.name && removeCount < 3) {
@@ -205,55 +180,41 @@ export default function App() {
             }
             return true;
           });
-
           alert(
             `🎊 [진화 성공!] ${finalResult.name} 3마리가 모여 [${nextRank}등급] ${evolvedResult.name}(으)로 진화했습니다!`
           );
-
-          // 진화해서 S급이 된 경우에도 꽃가루!
           if (nextRank === "S") {
             setShowConfetti(true);
             setTimeout(() => setShowConfetti(false), 5000);
           }
-
           return [evolvedResult, ...filteredInventory];
         }
-
         return currentInventory;
       });
-
       setIsSpinning(false);
     }, 1500);
   };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white">
-        {/* 포켓볼 흔들리는 애니메이션 효과 느낌 */}
         <div className="text-6xl mb-8 animate-bounce">📕</div>
-
         <h2 className="text-2xl font-black mb-2 text-gray-800">
           포켓몬 도감 동기화 중...
         </h2>
-        <p className="text-gray-400 mb-8 font-medium">
-          데이터를 분석하여 등급을 분류하고 있습니다.
-        </p>
-
-        {/* 프로그레스 바 바깥쪽 */}
         <div className="w-64 h-4 bg-gray-100 rounded-full overflow-hidden shadow-inner relative">
-          {/* 실제 채워지는 바 */}
           <div
             className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
-
-        {/* 퍼센트 텍스트 */}
         <span className="mt-4 text-indigo-600 font-bold text-lg">
           {progress}%
         </span>
       </div>
     );
   }
+
   return (
     <div className="flex h-screen w-full bg-gray-50 text-gray-800 font-sans">
       {showConfetti && (
@@ -274,6 +235,8 @@ export default function App() {
           ))}
         </div>
       )}
+
+      {/* 왼쪽: 업무 목록 */}
       <section className="w-1/3 border-r border-gray-200 p-6 overflow-y-auto bg-white">
         <h2 className="text-xl font-bold mb-6 flex justify-between items-center">
           🤸‍♀️업무 목록🏃‍♀️
@@ -282,26 +245,31 @@ export default function App() {
           </span>
         </h2>
         <div className="space-y-4">
-          {[1, 2, 3, 4].map((i) => (
+          {[0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="p-4 border rounded-xl hover:shadow-sm transit show-sm"
+              className="p-4 border rounded-xl hover:shadow-sm bg-gray-50"
             >
               <textarea
-                className="w-full h-20 p-2 text-sm bg-gray-50 border-none focus:ring-0 resize-none"
-                placeholder="오늘 완료할 마케팅 업무는?"
+                id={`task-${i}`}
+                className="w-full h-20 p-2 text-sm bg-white border rounded-lg focus:ring-2 focus:ring-indigo-500 resize-none mb-2"
+                placeholder={`${i + 1}번 업무 내용을 입력하세요...`}
               />
               <button
-                onClick={completeTask}
-                disabled={workTimeLeft > 0}
+                onClick={() =>
+                  completeTask(i, document.getElementById(`task-${i}`))
+                }
+                disabled={workTimeLefts[i] > 0}
                 className={`w-full py-3 rounded-xl font-bold transition-all ${
-                  workTimeLeft > 0
+                  workTimeLefts[i] > 0
                     ? "bg-gray-200 text-gray-500 cursor-not-allowed"
                     : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg active:scale-95"
                 }`}
               >
-                {workTimeLeft > 0
-                  ? `다음 업무까지 ${Math.floor(workTimeLeft / 60)}분 대기`
+                {workTimeLefts[i] > 0
+                  ? `${Math.floor(workTimeLefts[i] / 60)}분 ${
+                      workTimeLefts[i] % 60
+                    }초 대기`
                   : "업무 완료 및 티켓 받기"}
               </button>
             </div>
@@ -309,6 +277,7 @@ export default function App() {
         </div>
       </section>
 
+      {/* 중앙: 뽑기 섹션 */}
       <section className="w-1/3 flex flex-col items-center justify-center p-6 bg-gray-50">
         <h2 className="text-xl font-bold mb-10 text-center">🎰 보상 뽑기</h2>
         <div className="w-64 h-80 bg-white border-4 border-gray-200 rounded-3xl shadow-xl flex items-center justify-center relative overflow-hidden">
@@ -347,7 +316,6 @@ export default function App() {
             </div>
           )}
         </div>
-
         <button
           onClick={handleDraw}
           disabled={isSpinning}
@@ -361,9 +329,10 @@ export default function App() {
         </button>
       </section>
 
+      {/* 오른쪽: 인벤토리 */}
       <section className="w-1/3 border-l border-gray-200 p-6 overflow-y-auto bg-white shadow-inner">
         <h2 className="text-xl font-bold mb-6">
-          🎒인벤토리
+          🎒인벤토리{" "}
           <span className="text-sm bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-medium">
             총 {inventory.length}마리
           </span>
@@ -371,7 +340,7 @@ export default function App() {
         <div className="grid grid-cols-3 gap-3">
           {inventory.length === 0 && (
             <div className="col-span-3 text-center py-20 text-gray-400">
-              아직 획득한 보상이 없습니다.
+              아직 보상이 없습니다.
             </div>
           )}
           {inventory
@@ -379,21 +348,18 @@ export default function App() {
             .map((item, idx) => (
               <div
                 key={idx}
-                className={`relative aspect-square ${item.color} rounded-2xl shadow-sm flex items-center justify-center group hover:scale-105 transition-transform cursor-pointer overflow-hidden animate-slide-in`}
-                onClick={() =>
-                  alert(`[${item.rank}등급] ${item.name}\n종족값: ${item.bst}`)
-                }
+                className={`relative aspect-square ${item.color} rounded-2xl shadow-sm flex items-center justify-center group hover:scale-105 transition-transform cursor-pointer overflow-hidden`}
               >
+                {/* ★ 수정 포인트: 텍스트를 맨 위로 올리기 위해 z-20 추가 및 문구 강조 */}
+                <span className="absolute inset-0 flex items-center justify-center text-white/50 text-5xl font-black z-10 pointer-events-none select-none">
+                  {item.rank}
+                </span>
                 <img
                   src={item.sprite}
                   alt={item.name}
-                  className="h-full aspect-square z-10 [image-rendering:pixelated] object-contain scale-125"
+                  className="h-full aspect-square z-20 [image-rendering:pixelated] object-contain scale-125 relative"
                 />
-                <span className="absolute inset-0 flex items-center justify-center text-white/30 text-5xl font-black z-0">
-                  {item.rank}
-                </span>
-
-                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-20">
+                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30">
                   {item.name}
                 </div>
               </div>
