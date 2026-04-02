@@ -351,7 +351,7 @@ export default function App() {
                 className={`relative aspect-square ${item.color} rounded-2xl shadow-sm flex items-center justify-center group hover:scale-105 transition-transform cursor-pointer overflow-hidden`}
               >
                 {/* ★ 수정 포인트: 텍스트를 맨 위로 올리기 위해 z-20 추가 및 문구 강조 */}
-                <span className="absolute inset-0 flex items-center justify-center text-white/50 text-5xl font-black z-10 pointer-events-none select-none">
+                <span className="absolute inset-0 flex items-center justify-center text-white/50 text-8xl font-black z-10 pointer-events-none select-none">
                   {item.rank}
                 </span>
                 <img
