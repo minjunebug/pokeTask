@@ -15,6 +15,54 @@ export default function App() {
 
   const COOLDOWN_MINUTES = 10;
 
+  //재활용 포인트
+  const [recyclePoint, setRecyclePoint] = useState(() => {
+    const saved = localStorage.getItem("recycle-pointe");
+    return saved ? parseInt(saved) : 0;
+  });
+
+  //풀숲 흔들리는 이미지 추가
+  //const [isShaking, setIsShaking] = useState(false);
+
+  //점수 저장 로직
+  useEffect(() => {
+    localStorage.setItem("recycle-point", recyclePoint.toString());
+  }, [recyclePoint]);
+
+  //인벤토리에서 해당 카드 제거
+  const discardPokemon = (index) => {
+    const target = inventory[index];
+    const rankPoints = { S: 0, A: 3, B: 2, C: 1 };
+    const point = rankPoints[target.rank];
+
+    if (target.rank === "S")
+      return alert("S급은 버릴 수 없어요!!, 너무 아깝잖아요");
+    if (
+      !window.confirm(
+        `[${target.rank}등급] ${target.name}을(를) 버리고 ${point}점을 얻으시겠습니까? (5점 달성 시 티켓 1장)`
+      )
+    )
+      return;
+
+    const newInventory = [...inventory];
+    newInventory.splice(index, 1);
+    setInventory(newInventory);
+
+    const newPoint = recyclePoint + point;
+    if (newPoint >= 5) {
+      setTicket((prev) => prev + 1);
+      setRecyclePoint(newPoint - 5);
+      alert(
+        `🔥 교환 완료! 5점을 채워 티켓 1장을 획득했습니다! (남은 교환포인트: ${
+          newPoint - 5
+        })`
+      );
+    } else {
+      setRecyclePoint(newPoint);
+      alert(`${point}점을 얻었습니다. (현재: ${newPoint}/5점)`);
+    }
+  };
+
   // 칸별 마지막 업무 시간 관리
   const [lastWorkTimes, setLastWorkTimes] = useState(() => {
     const saved = localStorage.getItem("lastWorkTimes");
@@ -333,6 +381,14 @@ export default function App() {
       <section className="w-1/3 border-l border-gray-200 p-6 overflow-y-auto bg-white shadow-inner">
         <h2 className="text-xl font-bold mb-6">
           🎒인벤토리{" "}
+          <div className="flex items-center bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
+            <span className="text-[10px] font-bold text-orange-400 mr-2">
+              교환P
+            </span>
+            <span className="text-sm font-black text-orange-600">
+              {recyclePoint} / 5
+            </span>
+          </div>
           <span className="text-sm bg-gray-100 text-gray-500 px-3 py-1 rounded-full font-medium">
             총 {inventory.length}마리
           </span>
@@ -359,6 +415,18 @@ export default function App() {
                   alt={item.name}
                   className="h-full aspect-square z-20 [image-rendering:pixelated] object-contain scale-125 relative"
                 />
+                {/* ★ 카드 버리기 버튼 (호버 시 나타남) */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    discardPokemon(idx);
+                  }}
+                  className="absolute top-2 right-2 bg-white/20 hover:bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all z-30 shadow-lg"
+                  title="티켓 포인트를 위해 버리기"
+                >
+                  🗑️
+                </button>
+
                 <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/70 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30">
                   {item.name}
                 </div>
