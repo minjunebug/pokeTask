@@ -1,4 +1,3 @@
-// import "./styles.css";
 import React, { useEffect, useState } from "react";
 
 export default function App() {
@@ -14,6 +13,54 @@ export default function App() {
   const [showConfetti, setShowConfetti] = useState(false);
 
   const COOLDOWN_MINUTES = 10;
+
+  //재활용 포인트
+  const [recyclePoint, setRecyclePoint] = useState(() => {
+    const saved = localStorage.getItem("recycle-pointe");
+    return saved ? parseInt(saved) : 0;
+  });
+
+  //풀숲 흔들리는 이미지 추가
+  //const [isShaking, setIsShaking] = useState(false);
+
+  //점수 저장 로직
+  useEffect(() => {
+    localStorage.setItem("recycle-point", recyclePoint.toString());
+  }, [recyclePoint]);
+
+  //인벤토리에서 해당 카드 제거
+  const discardPokemon = (index) => {
+    const target = inventory[index];
+    const rankPoints = { S: 0, A: 3, B: 2, C: 1 };
+    const point = rankPoints[target.rank];
+
+    if (target.rank === "S")
+      return alert("S급은 버릴 수 없어요!!, 너무 아깝잖아요");
+    if (
+      !window.confirm(
+        `[${target.rank}등급] ${target.name}을(를) 버리고 ${point}점을 얻으시겠습니까? (5점 달성 시 티켓 1장)`
+      )
+    )
+      return;
+
+    const newInventory = [...inventory];
+    newInventory.splice(index, 1);
+    setInventory(newInventory);
+
+    const newPoint = recyclePoint + point;
+    if (newPoint >= 5) {
+      setTicket((prev) => prev + 1);
+      setRecyclePoint(newPoint - 5);
+      alert(
+        `🔥 교환 완료! 5점을 채워 티켓 1장을 획득했습니다! (남은 교환포인트: ${
+          newPoint - 5
+        })`
+      );
+    } else {
+      setRecyclePoint(newPoint);
+      alert(`${point}점을 얻었습니다. (현재: ${newPoint}/5점)`);
+    }
+  };
 
   // 칸별 마지막 업무 시간 관리
   const [lastWorkTimes, setLastWorkTimes] = useState(() => {
