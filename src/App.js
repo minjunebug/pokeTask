@@ -10,15 +10,12 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [progress, setProgress] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  const TOTAL_POKEMON = 151;
 
-  // 재활용 포인트
   const [recyclePoint, setRecyclePoint] = useState(() => {
     const saved = localStorage.getItem("recycle-point");
     return saved ? parseInt(saved) : 0;
   });
 
-  // 업무 리스트 상태
   const [taskList, setTaskList] = useState(() => {
     const saved = localStorage.getItem("todo-list");
     return saved ? JSON.parse(saved) : [];
@@ -27,17 +24,14 @@ export default function App() {
   const [activeTaskId, setActiveTaskId] = useState(null);
   const activeTask = taskList.find((t) => t.id === activeTaskId);
 
-  // 로컬스토리지 저장
   useEffect(() => {
     localStorage.setItem("recycle-point", recyclePoint.toString());
     localStorage.setItem("todo-list", JSON.stringify(taskList));
   }, [recyclePoint, taskList]);
 
-  // 업무 추가/삭제/완료 로직
   const addTask = () => {
     if (!taskInput.trim()) return alert("업무 내용을 입력해주세요!");
-    const newTask = { id: Date.now(), text: taskInput };
-    setTaskList([...taskList, newTask]);
+    setTaskList([...taskList, { id: Date.now(), text: taskInput }]);
     setTaskInput("");
   };
 
@@ -51,11 +45,10 @@ export default function App() {
     if (activeTaskId) {
       setTaskList((prev) => prev.filter((t) => t.id !== activeTaskId));
       setActiveTaskId(null);
-      alert("🎉 업무 완료! 티켓 1장을 획득했습니다!");
+      alert("🎉 업무 완료! 티켓 1장을 얻었습니다.");
     }
   };
 
-  // 포켓몬 데이터 로딩 (기존 로직 유지)
   useEffect(() => {
     const fetchPokemonData = async () => {
       try {
@@ -65,7 +58,7 @@ export default function App() {
             .then((res) => res.json())
             .then((poke) => {
               loadedCount++;
-              setProgress(Math.round((loadedCount / TOTAL_POKEMON) * 100));
+              setProgress(Math.round((loadedCount / 151) * 100));
               return poke;
             })
         );
@@ -87,18 +80,17 @@ export default function App() {
         setAllPokemon(cat);
         setTimeout(() => setIsLoading(false), 500);
       } catch (e) {
-        alert("데이터를 불러오는데 실패했습니다.");
+        alert("데이터 로딩 실패");
       }
     };
     fetchPokemonData();
   }, []);
 
-  // 인벤토리 저장/불러오기
   useEffect(() => {
-    const savedInv = localStorage.getItem("pokemon-inventory");
-    const savedTkt = localStorage.getItem("pokemon-tickets");
-    if (savedInv) setInventory(JSON.parse(savedInv));
-    if (savedTkt) setTicket(Number(savedTkt));
+    const inv = localStorage.getItem("pokemon-inventory");
+    const tkt = localStorage.getItem("pokemon-tickets");
+    if (inv) setInventory(JSON.parse(inv));
+    if (tkt) setTicket(Number(tkt));
   }, []);
 
   useEffect(() => {
@@ -108,7 +100,6 @@ export default function App() {
     }
   }, [inventory, ticket, isLoading]);
 
-  // 가챠 로직
   const handleDraw = () => {
     if (ticket <= 0 || isSpinning) return alert("티켓이 부족합니다!");
     setIsSpinning(true);
@@ -136,7 +127,6 @@ export default function App() {
     }, 1500);
   };
 
-  // 1. 로딩 화면 복구
   if (isLoading)
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white">
@@ -154,92 +144,100 @@ export default function App() {
     );
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-full bg-gray-50 text-gray-800 font-sans overflow-hidden">
+    <div className="flex flex-col md:flex-row h-screen w-full bg-gray-50 text-gray-800 overflow-hidden">
       {showConfetti && (
         <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center text-4xl">
           ✨✨✨
         </div>
       )}
 
-      {/* 1. 왼쪽: 업무 센터 (반응형 대응) */}
-      <section className="w-full md:w-1/3 border-r border-gray-200 flex flex-col bg-white overflow-hidden">
-        <div className="p-6 border-b">
-          <h2 className="text-xl font-bold mb-4 flex justify-between items-center">
-            🚀 업무 센터
-            <span className="text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded-full font-bold">
-              티켓: {ticket}장
-            </span>
-          </h2>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={taskInput}
-              onChange={(e) => setTaskInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addTask()}
-              placeholder="새로운 업무 입력..."
-              className="flex-1 p-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-            />
-            <button
-              onClick={addTask}
-              className="px-4 bg-indigo-600 text-white rounded-xl font-bold"
-            >
-              추가
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          <p className="text-[10px] font-bold text-gray-400 ml-2 mb-2 uppercase">
-            할 일 목록 (클릭하여 선택)
-          </p>
-          {taskList.map((task) => (
-            <div
-              key={task.id}
-              onClick={() => setActiveTaskId(task.id)}
-              className={`group flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all duration-500 ${
-                activeTaskId === task.id
-                  ? "border-indigo-500 bg-indigo-50 shadow-md"
-                  : "bg-gray-50 border-gray-100 hover:border-indigo-200"
-              }`}
-            >
-              <span
-                className={`text-sm font-medium ${
-                  activeTaskId === task.id
-                    ? "text-indigo-700 font-bold"
-                    : "text-gray-700"
-                }`}
-              >
-                {activeTaskId === task.id ? "🎯 " : ""}
-                {task.text}
+      {/* 1. 왼쪽: 업무 센터 (모바일에서는 타이머만 강조) */}
+      <section className="w-full md:w-1/3 border-r border-gray-200 flex flex-col bg-white overflow-hidden h-full">
+        {/* PC 전용 리스트 */}
+        <div className="hidden md:flex flex-col flex-1 overflow-hidden">
+          <div className="p-6 border-b">
+            <h2 className="text-xl font-bold mb-4 flex justify-between items-center">
+              🚀 업무 센터
+              <span className="text-sm bg-blue-100 text-blue-600 px-3 py-1 rounded-full font-bold">
+                티켓: {ticket}장
               </span>
+            </h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={taskInput}
+                onChange={(e) => setTaskInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addTask()}
+                placeholder="업무 입력..."
+                className="flex-1 p-3 bg-gray-50 border rounded-xl outline-none"
+              />
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteTask(task.id);
-                }}
-                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={addTask}
+                className="px-4 bg-indigo-600 text-white rounded-xl font-bold"
               >
-                ✕
+                추가
               </button>
             </div>
-          ))}
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {taskList.map((task) => (
+              <div
+                key={task.id}
+                onClick={() => setActiveTaskId(task.id)}
+                className={`group flex items-center justify-between p-3 border rounded-xl cursor-pointer transition-all ${
+                  activeTaskId === task.id
+                    ? "border-indigo-500 bg-indigo-50 shadow-md"
+                    : "bg-gray-50 border-gray-100"
+                }`}
+              >
+                <span
+                  className={`text-sm font-medium ${
+                    activeTaskId === task.id
+                      ? "text-indigo-700 font-bold"
+                      : "text-gray-700"
+                  }`}
+                >
+                  {activeTaskId === task.id ? "🎯 " : ""}
+                  {task.text}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteTask(task.id);
+                  }}
+                  className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="p-6 bg-gray-50 border-t">
-          <div className="flex justify-between items-center mb-2">
-            <p className="text-[10px] font-bold text-gray-400 uppercase">
-              Pomodoro Timer
-            </p>
+        {/* 뽀모도로 타이머 영역 (모바일 전체화면 모드 대응) */}
+        <div className="flex-1 md:flex-none p-6 bg-gray-50 md:border-t flex flex-col justify-center items-center">
+          <div className="md:hidden mb-6 text-center">
+            <h2 className="text-lg font-black text-gray-400 mb-1">
+              FOCUS MODE
+            </h2>
+            <div className="text-xs text-blue-500 font-bold">
+              보유 티켓: {ticket}장
+            </div>
           </div>
-          <PomodoroTimer
-            taskName={activeTask?.text}
-            onTaskComplete={handleTaskComplete}
-          />
+          <div className="w-full max-w-sm">
+            <PomodoroTimer
+              taskName={activeTask?.text}
+              onTaskComplete={handleTaskComplete}
+            />
+          </div>
+          <p className="md:hidden mt-6 text-[10px] text-gray-400 uppercase tracking-widest">
+            화면을 넓히면 메뉴가 나타납니다
+          </p>
         </div>
       </section>
 
-      {/* 2. 중앙: 보상 뽑기 */}
-      <section className="w-full md:w-1/3 flex flex-col items-center justify-center p-6 bg-gray-50 border-b md:border-b-0">
+      {/* 2. 중앙: 보상 뽑기 (PC 전용) */}
+      <section className="hidden md:flex md:w-1/3 flex-col items-center justify-center p-6 bg-gray-50 border-r border-gray-200">
         <h2 className="text-xl font-bold mb-10">🎰 보상 뽑기</h2>
         <div className="w-64 h-80 bg-white border-4 border-gray-200 rounded-[2.5rem] shadow-xl flex items-center justify-center relative overflow-hidden">
           {isSpinning ? (
@@ -276,63 +274,48 @@ export default function App() {
         </div>
         <button
           onClick={handleDraw}
-          disabled={isSpinning}
-          className={`mt-10 px-12 py-5 ${
-            isSpinning
-              ? "bg-gray-400"
-              : "bg-indigo-600 shadow-lg hover:bg-indigo-700"
-          } text-white rounded-2xl font-black text-xl active:scale-95 transition-all`}
+          className="mt-10 px-12 py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl hover:bg-indigo-700 shadow-lg active:scale-95 transition-all"
         >
-          {isSpinning ? "추첨 중" : "🙏 뽑기 시작"}
+          🙏 뽑기 시작
         </button>
       </section>
 
-      {/* 3. 오른쪽: 도감 */}
-      <section className="w-full md:w-1/3 border-l border-gray-200 p-6 overflow-y-auto bg-white">
+      {/* 3. 오른쪽: 도감 (PC 전용) */}
+      <section className="hidden md:block md:w-1/3 p-6 overflow-y-auto bg-white">
         <h2 className="text-xl font-bold mb-6 flex justify-between items-center">
-          🎒 도감
-          <div className="flex items-center bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
-            <span className="text-[10px] font-bold text-orange-400 mr-2">
-              P
-            </span>
-            <span className="text-sm font-black text-orange-600">
-              {recyclePoint}/5
-            </span>
-          </div>
+          🎒 도감{" "}
+          <span className="text-sm font-black text-orange-600">
+            P {recyclePoint}/5
+          </span>
         </h2>
         <div className="grid grid-cols-3 gap-3">
           {inventory.map((item, idx) => (
             <div
               key={idx}
-              className={`relative aspect-square ${item.color} rounded-2xl shadow-sm flex items-center justify-center group hover:scale-105 transition-all cursor-pointer overflow-hidden`}
+              className={`relative aspect-square ${item.color} rounded-2xl flex items-center justify-center group hover:scale-105 transition-all cursor-pointer overflow-hidden shadow-sm`}
             >
-              <span className="absolute inset-0 flex items-center justify-center text-white/40 text-6xl font-black z-10 pointer-events-none">
+              <span className="absolute inset-0 flex items-center justify-center text-white/30 text-5xl font-black z-10 pointer-events-none">
                 {item.rank}
               </span>
               <img
                 src={item.sprite}
-                className="h-full aspect-square z-20 object-contain relative [image-rendering:pixelated]"
+                className="h-full aspect-square z-20 object-contain [image-rendering:pixelated]"
                 alt="poke"
               />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  const points = { A: 3, B: 2, C: 1 };
-                  if (item.rank === "S")
-                    return alert("S급은 소중히 간직하세요!");
-                  if (
-                    window.confirm(
-                      `${item.name}을(를) 재활용하여 포인트를 얻을까요?`
-                    )
-                  ) {
+                  if (item.rank === "S") return alert("S급은 재활용 불가!");
+                  if (window.confirm("재활용 할까요?")) {
                     const newInv = [...inventory];
                     newInv.splice(idx, 1);
                     setInventory(newInv);
-                    const nP = recyclePoint + points[item.rank];
+                    const nP =
+                      recyclePoint +
+                      (item.rank === "A" ? 3 : item.rank === "B" ? 2 : 1);
                     if (nP >= 5) {
                       setTicket((t) => t + 1);
                       setRecyclePoint(nP - 5);
-                      alert("티켓 1장 교환 완료!");
                     } else {
                       setRecyclePoint(nP);
                     }
